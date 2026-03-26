@@ -68,7 +68,7 @@ completedAt: '2026-03-25'
 | Testing (e2e) | Playwright |
 | Linting | ESLint + Prettier |
 
-**Rationale:** SvelteKit is the canonical Svelte full-stack framework. `adapter-node` produces a standalone Node.js server runnable in Docker. `vite-plugin-pwa` handles service worker generation, manifest, and precaching with minimal config.
+**Rationale:** SvelteKit is the canonical Svelte full-stack framework. `adapter-node` produces a standalone Node.js server runnable in Docker. `vite-plugin-pwa` handles service worker generation, manifest, and static asset precaching. The `/api/plan` API endpoint requires an additional Workbox `runtimeCaching` entry in `vite.config.ts` to be cached at runtime — it is not included in the build-output precache manifest by default.
 
 ### 2.3 Backend — Node.js + Fastify + TypeScript
 
@@ -80,6 +80,7 @@ completedAt: '2026-03-25'
 | Framework | Fastify 4.x |
 | Language | TypeScript 5.x |
 | Data store | JSON files (read at startup, held in memory) |
+| CORS | `@fastify/cors` — dev safety net for direct browser-to-backend calls on `:3001` |
 | Testing (unit) | Vitest |
 | Testing (e2e/integration) | Fastify's built-in `inject` + Vitest |
 | Linting | ESLint + Prettier |
@@ -121,7 +122,7 @@ Environment variables are passed via `.env` file loaded by Docker Compose. An `.
 
 ### Base URL
 - Development: `http://localhost:3001`
-- Production: Internal Docker network — frontend proxies `/api/*` → `backend:3001`
+- Production: Internal Docker network — frontend proxies `/api/*` → `backend:${API_PORT}` (via `API_URL`)
 
 ### Endpoints
 
@@ -279,7 +280,7 @@ All data files live in `backend/src/data/`. They are read once at startup.
 
 - No global state store for MVP — SvelteKit load functions + page data
 - Plan data fetched once in root `+layout.ts` load function and passed as props
-- Service worker caches the API response; no client-side re-fetching needed
+- Service worker caches the `/api/plan` response at runtime via Workbox `runtimeCaching` (not build-time precache). Must be explicitly configured in `vite.config.ts` with a `CacheFirst` strategy targeting `/api/plan`. The default `vite-plugin-pwa` setup only precaches built static assets; the API endpoint requires a separate `runtimeCaching` entry.
 - Svelte stores only for transient UI state (e.g., selected day)
 
 ### 5.4 Error Handling
@@ -288,19 +289,25 @@ All data files live in `backend/src/data/`. They are read once at startup.
 - Frontend: `+error.svelte` page for route-level errors; inline error messages for API failures
 - Never expose stack traces to the client
 
-### 5.5 Environment Variables
+### 5.5 CORS
+
+`@fastify/cors` is registered as a Fastify plugin on the backend. CORS is a **browser**-enforced mechanism; it does not affect server-to-server requests. In the normal flow (SvelteKit proxy route calling Fastify over the Docker network, or SvelteKit dev server calling Fastify via Node `fetch`), CORS headers are irrelevant. `@fastify/cors` is included as a safety net for the case where a developer opens `http://localhost:3001` directly in a browser (e.g. via a REST client extension or dev tooling from the app at `:3000`). In development it allows `http://localhost:3000`; in production it is configured with a restrictive `origin` (no browser should ever reach the backend directly, but defensive configuration is cheap).
+
+### 5.6 Environment Variables
 
 All environment variables documented in `.env.example` at root and in each service directory:
+
+> **SvelteKit env var naming:** Variables prefixed `PUBLIC_` are exposed to the browser bundle. `API_URL` (no `PUBLIC_` prefix) is server-only — it holds the internal Docker hostname `http://backend:3001` which the browser can never reach. Never expose this as `PUBLIC_API_URL`.
 
 | Variable | Service | Default | Description |
 |----------|---------|---------|-------------|
 | `API_PORT` | backend | `3001` | Port the Fastify server listens on |
 | `FRONTEND_PORT` | frontend | `3000` | Port the SvelteKit server listens on |
-| `PUBLIC_API_URL` | frontend | `http://localhost:3001` | Backend URL used by the SvelteKit server (SSR) |
-| `PUBLIC_API_BASE` | frontend | `/api` | API base path for client-side fetch (proxied) |
+| `API_URL` | frontend | `http://localhost:3001` | Backend URL used by the SvelteKit Node server only (SSR + proxy route). Never read by browser code. |
+| `PUBLIC_API_BASE` | frontend | `/api` | API base path for client-side fetch (proxied through SvelteKit). Safe to expose — contains no hostnames. |
 | `NODE_ENV` | both | `development` | `development` or `production` |
 
-### 5.6 Testing Conventions
+### 5.7 Testing Conventions
 
 - **Unit tests (Vitest):** co-located with source files as `*.test.ts`
 - **Component tests (Vitest + Testing Library):** in `frontend/src/` as `*.test.ts` alongside components
@@ -318,7 +325,7 @@ babymeal-planner/                  ← project root (this workspace)
 ├── .env.example                   ← documented env template
 ├── .gitignore
 ├── docker-compose.yml
-├── docker-compose.override.yml    ← dev overrides (volume mounts)
+├── docker-compose.override.yml    ← dev overrides (committed; volume mounts + dev commands)
 ├── README.md
 │
 ├── backend/
@@ -378,7 +385,7 @@ babymeal-planner/                  ← project root (this workspace)
 │   │   │   ├── +error.svelte      ← error boundary page
 │   │   │   ├── api/
 │   │   │   │   └── [...path]/
-│   │   │   │       └── +server.ts ← catch-all proxy: forwards /api/* → backend:3001
+│   │   │   │       └── +server.ts ← catch-all proxy: forwards /api/* → backend:${API_PORT} (reads API_URL)
 │   │   │   └── day/[day]/
 │   │   │       ├── +page.ts       ← load function for single day
 │   │   │       └── +page.svelte   ← day detail: lunch + dinner cards
@@ -423,10 +430,13 @@ services:
       - API_PORT=${API_PORT:-3001}
     env_file: .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
+    # wget is provided by BusyBox in node:22-alpine. If the base image ever
+    # changes to a non-Alpine variant, ensure wget (or an equivalent) is
+    # installed in the backend Dockerfile before relying on this healthcheck.
 
   frontend:
     build: ./frontend
@@ -434,18 +444,18 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - PUBLIC_API_URL=http://backend:${API_PORT:-3001}
+      - API_URL=http://backend:${API_PORT:-3001}
     env_file: .env
     depends_on:
       backend:
         condition: service_healthy
 ```
 
-**API proxy:** The frontend container handles `/api/*` forwarding via a SvelteKit catch-all server route at `src/routes/api/[...path]/+server.ts`. This route runs on the SvelteKit Node server (SSR context), where it forwards the request to `http://backend:${API_PORT}` using the internal Docker network, then streams the response back to the client. The backend is NOT exposed to the host — only port 3000 (frontend) is published. Client-side `fetch('/api/plan')` hits the SvelteKit server, which proxies internally; this works seamlessly in both SSR and client navigation contexts.
+**API proxy:** The frontend container handles `/api/*` forwarding via a SvelteKit catch-all server route at `src/routes/api/[...path]/+server.ts`. This route runs on the SvelteKit Node server (SSR context), where it reads `API_URL` (e.g. `http://backend:3001`) and forwards the request to that address over the internal Docker network, then streams the response back to the client. The backend is NOT exposed to the host — only port 3000 (frontend) is published. Client-side `fetch('/api/plan')` hits the SvelteKit server, which proxies internally; this works seamlessly in both SSR and client navigation contexts.
 
 **Development overrides (`docker-compose.override.yml`):** Docker Compose automatically merges this file in development (`docker compose up` without `--file`). It mounts source directories as volumes for hot reload in both services:
 ```yaml
-# docker-compose.override.yml (development — not committed, generated from template)
+# docker-compose.override.yml (committed to repo — dev workflow only)
 services:
   backend:
     volumes:
@@ -457,7 +467,7 @@ services:
       - ./frontend/static:/app/static
     command: npm run dev
 ```
-The production `docker-compose.yml` has no volume mounts — images are self-contained.
+This file is **committed to the repository**. Docker Compose automatically merges it in development (`docker compose up`); in CI or production, pass `--file docker-compose.yml` explicitly to ignore it. The production `docker-compose.yml` has no volume mounts — images are self-contained.
 
 ---
 
@@ -475,7 +485,7 @@ The production `docker-compose.yml` has no volume mounts — images are self-con
 | NFR | Architectural Support |
 |-----|----------------------|
 | PWA | `vite-plugin-pwa` + `manifest.webmanifest` + service worker |
-| Offline | Service worker precaches `/api/plan` response on install |
+| Offline | Service worker caches `/api/plan` via Workbox `runtimeCaching` (`CacheFirst` strategy) + precaches all static assets |
 | Instant load | Plan pre-generated at startup, served from memory |
 | Mobile-first | SvelteKit responsive routes, CSS mobile-first breakpoints |
 | Self-hosted | Docker Compose, adapter-node, no cloud dependencies |
