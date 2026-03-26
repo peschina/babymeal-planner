@@ -1,0 +1,7 @@
+[
+  { "id": "rice", "name": "Rice cream", "defaultQuantityG": 20 },
+  { "id": "oats", "name": "Oat cream", "defaultQuantityG": 20 },
+  { "id": "corn", "name": "Corn cream", "defaultQuantityG": 20 },
+  { "id": "semolina", "name": "Semolina", "defaultQuantityG": 20 },
+  { "id": "mixed", "name": "Mixed grain cream", "defaultQuantityG": 20 }
+]

@@ -1,0 +1,15 @@
+[
+  { "id": "zucchini",     "name": "Zucchini",      "defaultQuantityG": 40 },
+  { "id": "carrot",       "name": "Carrot",         "defaultQuantityG": 30 },
+  { "id": "potato",       "name": "Potato",         "defaultQuantityG": 30 },
+  { "id": "pumpkin",      "name": "Pumpkin",        "defaultQuantityG": 40 },
+  { "id": "spinach",      "name": "Spinach",        "defaultQuantityG": 30 },
+  { "id": "fennel",       "name": "Fennel",         "defaultQuantityG": 30 },
+  { "id": "leek",         "name": "Leek",           "defaultQuantityG": 30 },
+  { "id": "cauliflower",  "name": "Cauliflower",    "defaultQuantityG": 35 },
+  { "id": "onion",        "name": "Onion",          "defaultQuantityG": 20 },
+  { "id": "beet",         "name": "Beet",           "defaultQuantityG": 30 },
+  { "id": "sweet_potato", "name": "Sweet potato",   "defaultQuantityG": 35 },
+  { "id": "celery",       "name": "Celery",         "defaultQuantityG": 20 },
+  { "id": "broccoli",     "name": "Broccoli",       "defaultQuantityG": 35 }
+]

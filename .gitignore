@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+backend/dist/
+frontend/build/
+frontend/.svelte-kit/
+
+# PWA / Vite
+frontend/static/service-worker*.js
+frontend/static/sw.js
+frontend/static/workbox-*.js
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Test results
+coverage/
+playwright-report/
+test-results/

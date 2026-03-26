@@ -1,0 +1,10 @@
+[
+  { "id": "chicken",     "name": "Chicken",      "defaultQuantityG": 30, "maxPerWeek": 3,    "type": "meat"   },
+  { "id": "turkey",      "name": "Turkey",       "defaultQuantityG": 30, "maxPerWeek": 3,    "type": "meat"   },
+  { "id": "fish",        "name": "Fish",         "defaultQuantityG": 30, "maxPerWeek": 2,    "type": "fish"   },
+  { "id": "lentils",     "name": "Lentils",      "defaultQuantityG": 30, "maxPerWeek": null, "type": "legume" },
+  { "id": "peas",        "name": "Peas",         "defaultQuantityG": 30, "maxPerWeek": null, "type": "legume" },
+  { "id": "green_beans", "name": "Green beans",  "defaultQuantityG": 30, "maxPerWeek": null, "type": "legume" },
+  { "id": "cheese",      "name": "Cheese",       "defaultQuantityG": 20, "maxPerWeek": 2,    "type": "dairy"  },
+  { "id": "eggs",        "name": "Eggs",         "defaultQuantityG": 30, "maxPerWeek": 1,    "type": "egg"    }
+]

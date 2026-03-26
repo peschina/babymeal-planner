@@ -1,0 +1,11 @@
+{
+  "fixedIngredients": {
+    "oliveOilG": 5,
+    "brothMl": 150
+  },
+  "constraints": {
+    "noDuplicateProteinInDay": true,
+    "noDuplicateCerealInDay": true,
+    "maxVegetablesPerMeal": 2
+  }
+}
