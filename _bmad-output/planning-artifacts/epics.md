@@ -107,7 +107,7 @@ So that both services share a consistent project root and can be managed togethe
 **When** the developer inspects the root  
 **Then** a `.gitignore` exists ignoring `node_modules`, `.env`, build artifacts, and PWA dist  
 **And** a `README.md` exists with basic project description and local setup instructions  
-**And** a `.env.example` at root documents `API_PORT`, `FRONTEND_PORT`, `PUBLIC_API_URL`, `PUBLIC_API_BASE`, `NODE_ENV`
+**And** a `.env.example` at root documents `API_PORT`, `FRONTEND_PORT`, `API_URL`, `PUBLIC_API_BASE`, `NODE_ENV`
 
 **Test Scenarios:**
 
@@ -144,6 +144,17 @@ So that I can start implementing API routes with type safety and testability fro
 **When** the developer runs `npm run lint` inside `backend/`  
 **Then** ESLint + Prettier report no errors on the initial scaffold
 
+**Given** a browser-based tool (e.g. a dev REST client running in the browser at `:3000`) calls `http://localhost:3001/api/plan` directly  
+**When** the browser sends a cross-origin request to `:3001`  
+**Then** `@fastify/cors` responds with `Access-Control-Allow-Origin: http://localhost:3000`  
+**And** the request succeeds in browser context
+
+> Note: SSR `fetch` calls from the SvelteKit Node process to Fastify are server-to-server and not subject to browser CORS enforcement. `@fastify/cors` is a safety net for direct browser-to-backend access, not a requirement for the normal proxy flow.
+
+**Given** `@fastify/cors` is configured  
+**When** a browser request arrives from an origin other than `localhost:3000` in development  
+**Then** CORS headers do NOT grant access (restrictive `origin` config)
+
 **Test Scenarios:**
 
 - **Unit (Vitest):**
@@ -152,6 +163,7 @@ So that I can start implementing API routes with type safety and testability fro
   - `GET /api/health` → 200 with `{ status: "ok", uptime: number }`
   - `GET /api/unknown` → 404 with error envelope
   - Simulated thrown error in handler → 500 with error envelope, no stack trace in body
+  - CORS preflight from `http://localhost:3000` → response includes `Access-Control-Allow-Origin: http://localhost:3000`
 - **E2E:** N/A
 
 ---
@@ -206,14 +218,14 @@ So that I can build UI components with type safety, unit tests, and e2e tests fr
 **Then** the SvelteKit dev server starts on `$FRONTEND_PORT` (default 3000) without errors  
 **And** the root `+page.svelte` renders a placeholder "BabyMeal Planner" page
 
-**Given** the frontend dev server is running with `PUBLIC_API_URL` set  
+**Given** the frontend dev server is running with `API_URL` set  
 **When** `GET /api/plan` is requested from a browser  
-**Then** `src/routes/api/[...path]/+server.ts` intercepts the request on the SvelteKit Node server and proxies it to `http://localhost:3001/api/plan`  
+**Then** `src/routes/api/[...path]/+server.ts` intercepts the request on the SvelteKit Node server and proxies it to the URL specified in `API_URL` (e.g. `http://localhost:3001/api/plan`)  
 **And** the response is forwarded correctly with the original HTTP status and body
 
 **Given** the proxy route exists  
 **When** the frontend is running in Docker behind the compose network  
-**Then** the proxy forwards to `http://backend:3001` via the internal Docker network  
+**Then** the proxy forwards to the host specified in `API_URL` (e.g. `http://backend:${API_PORT}`) via the internal Docker network  
 **And** the backend port is NOT required to be published to the host
 
 **Given** the frontend is built  
@@ -313,8 +325,10 @@ So that the generated 30-day plan is nutritionally varied and rule-compliant.
 **Test Scenarios:**
 
 - **Unit (Vitest):**
-  - `filterByWeeklyLimit(proteins, weeklyUsage, 'fish', 2)` → excludes fish when count = 2
-  - `filterByWeeklyLimit(proteins, weeklyUsage, 'eggs', 1)` → excludes eggs when count = 1
+  - `filterByWeeklyLimit(candidates, weeklyUsage, protein)` → derives the limit from `protein.maxPerWeek`; excludes protein when its usage count equals `maxPerWeek`
+  - `filterByWeeklyLimit([fish], { fish: 2 }, fishProtein)` → returns empty array (fish.maxPerWeek = 2, count = 2)
+  - `filterByWeeklyLimit([eggs], { eggs: 1 }, eggsProtein)` → returns empty array (eggs.maxPerWeek = 1, count = 1)
+  - `filterByWeeklyLimit([lentils], { lentils: 5 }, lentilsProtein)` → returns lentils (lentils.maxPerWeek = null, no limit)
   - `excludeUsed(proteins, 'chicken')` → returns array without chicken
   - `selectVegetables(vegetables, 2)` → always returns 1 or 2 items, never 0 or 3+
   - Day-level protein uniqueness: running 100 random single-day generations → no day has duplicate protein
@@ -440,8 +454,8 @@ So that all pages have access to plan data without redundant fetches.
 
 **Given** `api.getPlan()` is called  
 **When** inspecting the HTTP request  
-**Then** it uses `PUBLIC_API_URL` as the base in SSR context  
-**And** it uses `PUBLIC_API_BASE` (`/api`) as the base in client-side context
+**Then** it uses `API_URL` (server-only env var, no `PUBLIC_` prefix) as the base in SSR context  
+**And** it uses `PUBLIC_API_BASE` (`/api`) as the base in client-side context (which proxies through SvelteKit)
 
 **Test Scenarios:**
 
@@ -564,9 +578,11 @@ So that I can open it like a native app without going through the browser.
 **Then** it contains: `name`, `short_name`, `start_url: "/"`, `display: "standalone"`, `icons` array with at least 192×192 and 512×512 entries  
 **And** theme color and background color are set
 
-**Given** the app is opened in Chrome on Android  
+**Given** the app is opened in Chrome on Android **and served over HTTPS (or localhost in development)**  
 **When** the browser evaluates install eligibility  
 **Then** an "Add to Home Screen" prompt is offered (installability criteria met)
+
+> Note: Chrome requires a secure context (HTTPS or `localhost`) for the install prompt. In the Docker self-hosted deployment, a TLS-terminating proxy must be present. See Known Trade-offs in architecture.md.
 
 **Given** the app is opened in Safari on iOS  
 **When** viewed  
@@ -594,8 +610,8 @@ So that I can check what to cook even in the kitchen without WiFi.
 
 **Given** the app is loaded online for the first time  
 **When** the service worker installs and activates  
-**Then** the `GET /api/plan` response is precached  
-**And** all app shell assets (HTML, JS, CSS, fonts) are precached
+**Then** `vite-plugin-pwa` precaches all static build output (HTML, JS, CSS, fonts)  
+**And** the `/api/plan` response is cached at runtime via a Workbox `runtimeCaching` entry configured in `vite.config.ts` with a `CacheFirst` strategy targeting the `/api/plan` URL pattern
 
 **Given** the device goes offline after first load  
 **When** the parent opens the app  
@@ -645,7 +661,7 @@ So that it can be built into a minimal, runnable container image.
 
 **Given** the backend container is started with `docker run -p 3001:3001 babymeal-backend`  
 **When** `GET http://localhost:3001/api/health` is called  
-**Then** HTTP 200 is returned with `{ "status": "ok" }`
+**Then** HTTP 200 is returned with `{ "status": "ok", "uptime": <number> }`
 
 **Given** the container is running  
 **When** `API_PORT` env var is set to `3001`  
@@ -657,7 +673,7 @@ So that it can be built into a minimal, runnable container image.
 - **Integration:** N/A
 - **E2E / Manual:**
   - `docker build` exits with code 0
-  - `docker run --env API_PORT=3001` → `curl http://localhost:3001/api/health` → 200
+  - `docker run --env API_PORT=3001` → `wget -qO- http://localhost:3001/api/health` → 200
 
 ---
 
@@ -675,9 +691,11 @@ So that it can be built into a container that serves the SvelteKit app.
 **And** the resulting image is based on `node:22-alpine`  
 **And** the image uses a multi-stage build
 
-**Given** the frontend container is started with `PUBLIC_API_URL=http://backend:3001`  
+**Given** the frontend container is started with `API_URL=http://backend:3001`  
 **When** `GET http://localhost:3000/` is called  
 **Then** HTTP 200 is returned with a valid HTML page
+
+> Note: The frontend's root `+layout.ts` performs an SSR fetch to `API_URL` on page load. A standalone `docker run` test with `API_URL=http://backend:3001` requires the backend to be reachable at that address. For isolated frontend build validation, use `API_URL` pointing to a reachable mock or stub endpoint, or run frontend and backend together on a shared user-defined Docker network (`docker network create babymeal && docker run --network babymeal ...`).
 
 **Test Scenarios:**
 
@@ -685,7 +703,18 @@ So that it can be built into a container that serves the SvelteKit app.
 - **Integration:** N/A
 - **E2E / Manual:**
   - `docker build` exits with code 0
-  - `docker run --env PUBLIC_API_URL=http://backend:3001 -p 3000:3000` → `curl http://localhost:3000` → 200 HTML
+  - Networked smoke test (frontend + backend on shared network, backend polled until healthy):
+    ```sh
+    docker network create babymeal
+    docker run -d --name backend --network babymeal babymeal-backend
+    # wait for backend to be ready (max ~15 s)
+    until docker exec backend wget -qO- http://localhost:3001/api/health >/dev/null 2>&1; do sleep 1; done
+    docker run -d --name frontend --network babymeal \
+      --env API_URL=http://backend:3001 -p 3000:3000 babymeal-frontend
+    sleep 2   # allow SvelteKit Node server to start
+    wget -qO- http://localhost:3000   # → 200 HTML
+    docker rm -f backend frontend && docker network rm babymeal
+    ```
 
 ---
 
@@ -713,11 +742,12 @@ So that `docker compose up` brings up the complete application with a single com
 
 **Given** a `.env.example` file exists at project root  
 **When** it is inspected  
-**Then** it documents: `API_PORT`, `FRONTEND_PORT`, `PUBLIC_API_URL`, `PUBLIC_API_BASE`, `NODE_ENV`
+**Then** it documents: `API_PORT`, `FRONTEND_PORT`, `API_URL`, `PUBLIC_API_BASE`, `NODE_ENV`
 
-**Given** `docker-compose.override.yml` exists  
-**When** running in development mode  
-**Then** source volumes are mounted for hot reload in both services
+**Given** `docker-compose.override.yml` is committed to the repository  
+**When** a developer runs `docker compose up` (no `--file` flag)  
+**Then** Docker Compose automatically merges the override file, mounting source volumes and using `npm run dev` commands in both services  
+**And** the production workflow uses `docker compose -f docker-compose.yml up` to explicitly exclude the override
 
 **Test Scenarios:**
 
