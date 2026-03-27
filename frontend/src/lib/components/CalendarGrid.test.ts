@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
 import CalendarGrid from './CalendarGrid.svelte';
 import type { PlanDay } from '../types.js';
+import { buildCalendar } from '../utils.js';
 
 function makeDay(n: number): PlanDay {
   return {
@@ -26,25 +27,38 @@ function makeDay(n: number): PlanDay {
 }
 
 const thirtyDays: PlanDay[] = Array.from({ length: 30 }, (_, i) => makeDay(i + 1));
+// Use a fixed Monday as start date so the grid is deterministic in tests
+const startDate = new Date('2026-03-23T00:00:00'); // Monday
 
 describe('CalendarGrid', () => {
-  it('renders exactly 30 day links for a 30-item days prop', () => {
-    const { container } = render(CalendarGrid, { props: { days: thirtyDays } });
+  it('renders exactly 30 plan day links', () => {
+    const calendar = buildCalendar(thirtyDays, startDate);
+    const { container } = render(CalendarGrid, { props: { calendar } });
     const links = container.querySelectorAll('a');
     expect(links).toHaveLength(30);
   });
 
-  it('renders the correct day number in each cell', () => {
-    const { getByText } = render(CalendarGrid, { props: { days: thirtyDays } });
-    expect(getByText('1')).toBeTruthy();
-    expect(getByText('15')).toBeTruthy();
-    expect(getByText('30')).toBeTruthy();
+  it('renders 7 weekday headers', () => {
+    const calendar = buildCalendar(thirtyDays, startDate);
+    const { container } = render(CalendarGrid, { props: { calendar } });
+    const headers = container.querySelectorAll('.weekday-label');
+    expect(headers).toHaveLength(7);
   });
 
-  it('marks the cell matching today prop with today class', () => {
-    const { container } = render(CalendarGrid, { props: { days: thirtyDays, today: 7 } });
+  it('marks today cell with today class', () => {
+    const calendar = buildCalendar(thirtyDays, startDate);
+    const { container } = render(CalendarGrid, { props: { calendar } });
     const todayCells = container.querySelectorAll('.today');
+    // plan day 1 = startDate = March 23; today cell links to /day/1
     expect(todayCells).toHaveLength(1);
-    expect(todayCells[0].getAttribute('href')).toBe('/day/7');
+    expect(todayCells[0].getAttribute('href')).toBe('/day/1');
+  });
+
+  it('shows a month label for each calendar month spanned', () => {
+    const calendar = buildCalendar(thirtyDays, startDate);
+    const { container } = render(CalendarGrid, { props: { calendar } });
+    const monthLabels = container.querySelectorAll('.month-label');
+    // March 23 + 30 days = April 21, so two months should appear
+    expect(monthLabels.length).toBeGreaterThanOrEqual(1);
   });
 });

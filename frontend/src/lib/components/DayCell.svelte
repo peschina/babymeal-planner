@@ -2,11 +2,12 @@
   import type { PlanDay } from '$lib/types.js';
 
   export let day: PlanDay;
+  export let dateLabel: number; // actual day-of-month number to display
   export let isToday: boolean = false;
 </script>
 
 <a href="/day/{day.day}" class="day-cell" class:today={isToday} aria-label="Day {day.day}">
-  <span class="day-number">{day.day}</span>
+  <span class="day-number">{dateLabel}</span>
   <span class="meal-preview">{day.lunch.protein.name}</span>
   <span class="meal-preview">{day.dinner.protein.name}</span>
 </a>

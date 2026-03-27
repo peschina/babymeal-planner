@@ -24,29 +24,29 @@ const mockDay: PlanDay = {
 };
 
 describe('DayCell', () => {
-  it('displays the day number', () => {
-    const { getByText } = render(DayCell, { props: { day: mockDay } });
-    expect(getByText('5')).toBeTruthy();
+  it('displays the dateLabel (day of month)', () => {
+    const { getByText } = render(DayCell, { props: { day: mockDay, dateLabel: 27 } });
+    expect(getByText('27')).toBeTruthy();
   });
 
   it('displays lunch and dinner protein names', () => {
-    const { getByText } = render(DayCell, { props: { day: mockDay } });
+    const { getByText } = render(DayCell, { props: { day: mockDay, dateLabel: 27 } });
     expect(getByText('Chicken')).toBeTruthy();
     expect(getByText('Fish')).toBeTruthy();
   });
 
   it('has today CSS class when isToday is true', () => {
-    const { container } = render(DayCell, { props: { day: mockDay, isToday: true } });
+    const { container } = render(DayCell, { props: { day: mockDay, dateLabel: 27, isToday: true } });
     expect(container.querySelector('.today')).toBeTruthy();
   });
 
   it('does not have today CSS class by default', () => {
-    const { container } = render(DayCell, { props: { day: mockDay } });
+    const { container } = render(DayCell, { props: { day: mockDay, dateLabel: 27 } });
     expect(container.querySelector('.today')).toBeNull();
   });
 
   it('renders a link to the day detail page', () => {
-    const { container } = render(DayCell, { props: { day: mockDay } });
+    const { container } = render(DayCell, { props: { day: mockDay, dateLabel: 27 } });
     const link = container.querySelector('a');
     expect(link?.getAttribute('href')).toBe('/day/5');
   });
