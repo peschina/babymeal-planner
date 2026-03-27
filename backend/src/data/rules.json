@@ -6,6 +6,7 @@
   "constraints": {
     "noDuplicateProteinInDay": true,
     "noDuplicateCerealInDay": true,
-    "maxVegetablesPerMeal": 2
+    "minVegetablesPerMeal": 3,
+    "maxVegetablesPerMeal": 4
   }
 }

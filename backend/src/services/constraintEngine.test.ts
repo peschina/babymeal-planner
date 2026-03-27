@@ -46,17 +46,22 @@ describe('selectVegetables', () => {
     defaultQuantityG: 30,
   }));
 
-  it('always returns 1 or 2 items (never 0 or 3+)', () => {
+  it('always returns between minCount and maxCount items (3–4)', () => {
     for (let i = 0; i < 100; i++) {
-      const result = selectVegetables(vegetables, 2);
-      expect(result.length).toBeGreaterThanOrEqual(1);
-      expect(result.length).toBeLessThanOrEqual(2);
+      const result = selectVegetables(vegetables, 3, 4);
+      expect(result.length).toBeGreaterThanOrEqual(3);
+      expect(result.length).toBeLessThanOrEqual(4);
     }
   });
 
   it('never returns more than maxCount items', () => {
     for (let i = 0; i < 50; i++) {
-      expect(selectVegetables(vegetables, 2).length).toBeLessThanOrEqual(2);
+      expect(selectVegetables(vegetables, 3, 4).length).toBeLessThanOrEqual(4);
     }
+  });
+
+  it('is clamped by available vegetables when list is smaller than minCount', () => {
+    const twoVegs: Vegetable[] = [{ id: 'v1', name: 'V1', defaultQuantityG: 30 }, { id: 'v2', name: 'V2', defaultQuantityG: 30 }];
+    expect(selectVegetables(twoVegs, 3, 4).length).toBeLessThanOrEqual(2);
   });
 });

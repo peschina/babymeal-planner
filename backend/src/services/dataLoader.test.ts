@@ -46,7 +46,8 @@ describe('loadVegetables', () => {
 describe('loadRules', () => {
   it('returns rules with expected constraint keys', async () => {
     const rules = await loadRules(dataDir);
-    expect(rules.constraints.maxVegetablesPerMeal).toBe(2);
+    expect(rules.constraints.minVegetablesPerMeal).toBe(3);
+    expect(rules.constraints.maxVegetablesPerMeal).toBe(4);
     expect(rules.fixedIngredients.oliveOilG).toBe(5);
     expect(rules.fixedIngredients.brothMl).toBe(150);
   });

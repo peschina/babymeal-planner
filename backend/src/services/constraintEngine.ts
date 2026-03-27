@@ -23,13 +23,18 @@ export function excludeUsed<T extends { id: string }>(candidates: T[], usedIds: 
 }
 
 /**
- * Randomly selects 1 or 2 vegetables from the candidates list.
- * Never returns 0 items (assumes candidates.length >= 1).
+ * Randomly selects between minCount and maxCount vegetables from the candidates list.
+ * The returned count is clamped to the available list length.
  */
-export function selectVegetables(vegetables: Vegetable[], maxCount: number): Vegetable[] {
+export function selectVegetables(
+  vegetables: Vegetable[],
+  minCount: number,
+  maxCount: number,
+): Vegetable[] {
   const shuffled = [...vegetables].sort(() => Math.random() - 0.5);
-  const count = 1 + Math.floor(Math.random() * maxCount);
-  return shuffled.slice(0, Math.min(count, maxCount, vegetables.length));
+  const range = maxCount - minCount + 1;
+  const count = minCount + Math.floor(Math.random() * range);
+  return shuffled.slice(0, Math.min(count, vegetables.length));
 }
 
 /**

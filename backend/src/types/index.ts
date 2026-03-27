@@ -28,6 +28,7 @@ export interface Rules {
   constraints: {
     noDuplicateProteinInDay: boolean;
     noDuplicateCerealInDay: boolean;
+    minVegetablesPerMeal: number;
     maxVegetablesPerMeal: number;
   };
 }

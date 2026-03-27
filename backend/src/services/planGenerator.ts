@@ -58,6 +58,7 @@ export function generatePlan(data: PlanData): MealPlan {
     // ── Lunch vegetables ───────────────────────────────────────────────────────
     const lunchVegetables = selectVegetables(
       data.vegetables,
+      data.rules.constraints.minVegetablesPerMeal,
       data.rules.constraints.maxVegetablesPerMeal,
     );
 
@@ -76,6 +77,7 @@ export function generatePlan(data: PlanData): MealPlan {
     // ── Dinner vegetables ──────────────────────────────────────────────────────
     const dinnerVegetables = selectVegetables(
       data.vegetables,
+      data.rules.constraints.minVegetablesPerMeal,
       data.rules.constraints.maxVegetablesPerMeal,
     );
 
