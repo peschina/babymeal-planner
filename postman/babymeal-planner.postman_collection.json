@@ -1,0 +1,287 @@
+{
+  "info": {
+    "name": "BabyMeal Planner API",
+    "description": "Integration tests for the BabyMeal Planner Fastify backend.\n\nSet the `baseUrl` collection variable to point at your running backend (default: http://localhost:4001).\n\nRun with: newman run babymeal-planner.postman_collection.json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health — 200 ok",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('body.status is ok', () => pm.expect(body.status).to.eql('ok'));",
+                  "pm.test('body.uptime is a non-negative number', () => {",
+                  "  pm.expect(body.uptime).to.be.a('number');",
+                  "  pm.expect(body.uptime).to.be.at.least(0);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', () =>",
+                  "  pm.expect(pm.response.headers.get('content-type')).to.include('application/json')",
+                  ");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plan",
+      "item": [
+        {
+          "name": "GET /api/plan — full 30-day plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('totalDays is 30', () => pm.expect(body.totalDays).to.eql(30));",
+                  "pm.test('days array has 30 entries', () => pm.expect(body.days).to.have.lengthOf(30));",
+                  "pm.test('generatedAt is an ISO 8601 string', () => {",
+                  "  pm.expect(body.generatedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+                  "});",
+                  "",
+                  "const day1 = body.days[0];",
+                  "pm.test('day 1 has day number 1', () => pm.expect(day1.day).to.eql(1));",
+                  "pm.test('day 1 has lunch and dinner', () => {",
+                  "  pm.expect(day1.lunch).to.be.an('object');",
+                  "  pm.expect(day1.dinner).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('day 1 lunch has all required fields', () => {",
+                  "  const m = day1.lunch;",
+                  "  pm.expect(m.id).to.be.a('string');",
+                  "  pm.expect(m.cereal).to.have.property('name').that.is.a('string');",
+                  "  pm.expect(m.cereal).to.have.property('quantityG').that.is.a('number');",
+                  "  pm.expect(m.protein).to.have.property('name').that.is.a('string');",
+                  "  pm.expect(m.protein).to.have.property('quantityG').that.is.a('number');",
+                  "  pm.expect(m.vegetables).to.be.an('array').with.lengthOf.within(1, 2);",
+                  "  pm.expect(m.oliveOil.quantityG).to.eql(5);",
+                  "  pm.expect(m.broth.quantityMl).to.eql(150);",
+                  "});",
+                  "",
+                  "pm.test('no day has same protein at lunch and dinner', () => {",
+                  "  body.days.forEach(d => {",
+                  "    pm.expect(d.lunch.protein.name, `day ${d.day} duplicate protein`)",
+                  "      .to.not.eql(d.dinner.protein.name);",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('no day has same cereal at lunch and dinner', () => {",
+                  "  body.days.forEach(d => {",
+                  "    pm.expect(d.lunch.cereal.name, `day ${d.day} duplicate cereal`)",
+                  "      .to.not.eql(d.dinner.cereal.name);",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('all meals have olive oil 5g and broth 150ml', () => {",
+                  "  body.days.forEach(d => {",
+                  "    [d.lunch, d.dinner].forEach(m => {",
+                  "      pm.expect(m.oliveOil.quantityG, `day ${d.day} oliveOil`).to.eql(5);",
+                  "      pm.expect(m.broth.quantityMl, `day ${d.day} broth`).to.eql(150);",
+                  "    });",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('fish appears at most 10 times across whole plan', () => {",
+                  "  const count = body.days.flatMap(d => [d.lunch, d.dinner])",
+                  "    .filter(m => m.protein.name === 'Fish').length;",
+                  "  pm.expect(count).to.be.at.most(10);",
+                  "});",
+                  "",
+                  "pm.test('eggs appear at most 5 times across whole plan', () => {",
+                  "  const count = body.days.flatMap(d => [d.lunch, d.dinner])",
+                  "    .filter(m => m.protein.name === 'Eggs').length;",
+                  "  pm.expect(count).to.be.at.most(5);",
+                  "});",
+                  "",
+                  "// Store plan for downstream tests",
+                  "pm.collectionVariables.set('plan', JSON.stringify(body));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan"
+          }
+        },
+        {
+          "name": "GET /api/plan — consecutive calls return identical plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const stored = pm.collectionVariables.get('plan');",
+                  "pm.test('response matches previously stored plan (deterministic)', () => {",
+                  "  if (stored) {",
+                  "    pm.expect(pm.response.text()).to.eql(JSON.stringify(JSON.parse(stored)));",
+                  "  } else {",
+                  "    pm.expect.fail('No stored plan — run GET /api/plan first');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan"
+          }
+        },
+        {
+          "name": "GET /api/plan/1 — day 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('day is 1', () => pm.expect(body.day).to.eql(1));",
+                  "pm.test('has lunch', () => pm.expect(body.lunch).to.be.an('object'));",
+                  "pm.test('has dinner', () => pm.expect(body.dinner).to.be.an('object'));",
+                  "pm.test('lunch id is meal-d1-lunch', () => pm.expect(body.lunch.id).to.eql('meal-d1-lunch'));",
+                  "pm.test('dinner id is meal-d1-dinner', () => pm.expect(body.dinner.id).to.eql('meal-d1-dinner'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan/1"
+          }
+        },
+        {
+          "name": "GET /api/plan/30 — last day",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('day is 30', () => pm.expect(pm.response.json().day).to.eql(30));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan/30"
+          }
+        },
+        {
+          "name": "GET /api/plan/0 — below range → 400 INVALID_DAY",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('error.code is INVALID_DAY', () => pm.expect(body.error.code).to.eql('INVALID_DAY'));",
+                  "pm.test('error.message mentions 1 and 30', () => pm.expect(body.error.message).to.include('30'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan/0"
+          }
+        },
+        {
+          "name": "GET /api/plan/31 — above range → 400 INVALID_DAY",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error.code is INVALID_DAY', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_DAY'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan/31"
+          }
+        },
+        {
+          "name": "GET /api/plan/abc — non-numeric → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('has error envelope', () => pm.expect(pm.response.json()).to.have.property('error'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/plan/abc"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error handling",
+      "item": [
+        {
+          "name": "GET /api/nonexistent — 404 NOT_FOUND",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('error.code is NOT_FOUND', () => pm.expect(body.error.code).to.eql('NOT_FOUND'));",
+                  "pm.test('error.message is present', () => pm.expect(body.error.message).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/nonexistent"
+          }
+        }
+      ]
+    }
+  ]
+}

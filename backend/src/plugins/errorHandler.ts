@@ -1,6 +1,15 @@
 import type { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 
 export async function errorHandler(app: FastifyInstance): Promise<void> {
+  app.setNotFoundHandler((_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.status(404).send({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Route not found',
+      },
+    });
+  });
+
   app.setErrorHandler(
     (error: FastifyError, _request: FastifyRequest, reply: FastifyReply) => {
       const statusCode = error.statusCode ?? 500;

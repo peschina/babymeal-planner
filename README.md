@@ -37,7 +37,7 @@ npm install          # installs both workspaces
 
 ```bash
 # In separate terminals:
-npm run dev:backend   # http://localhost:3001
+npm run dev:backend   # http://localhost:4001
 npm run dev:frontend  # http://localhost:3000
 ```
 
@@ -54,9 +54,9 @@ See `.env.example` for the full list with descriptions.
 
 | Variable          | Service  | Default                 | Notes                                    |
 |-------------------|----------|-------------------------|------------------------------------------|
-| `API_PORT`        | backend  | `3001`                  | Fastify listen port                      |
+| `API_PORT`        | backend  | `4001`                  | Fastify listen port                      |
 | `FRONTEND_PORT`   | frontend | `3000`                  | SvelteKit listen port                    |
-| `API_URL`         | frontend | `http://localhost:3001` | Server-only — never read by browser      |
+| `API_URL`         | frontend | `http://localhost:4001` | Server-only — never read by browser      |
 | `PUBLIC_API_BASE` | frontend | `/api`                  | Client-side API prefix (proxied)         |
 | `NODE_ENV`        | both     | `development`           | `development` or `production`            |
 
