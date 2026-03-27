@@ -93,3 +93,40 @@ describe('GET /api/unknown', () => {
     await app.close();
   });
 });
+
+describe('GET /api/plan — meal shape', () => {
+  it('every meal has 3 to 4 vegetables', async () => {
+    const app = await buildApp({ plan });
+    const response = await app.inject({ method: 'GET', url: '/api/plan' });
+    const body = response.json<MealPlan>();
+    for (const day of body.days) {
+      expect(day.lunch.vegetables.length).toBeGreaterThanOrEqual(3);
+      expect(day.lunch.vegetables.length).toBeLessThanOrEqual(4);
+      expect(day.dinner.vegetables.length).toBeGreaterThanOrEqual(3);
+      expect(day.dinner.vegetables.length).toBeLessThanOrEqual(4);
+    }
+    await app.close();
+  });
+
+  it('every meal has oliveOil 5g and broth 150ml', async () => {
+    const app = await buildApp({ plan });
+    const response = await app.inject({ method: 'GET', url: '/api/plan' });
+    const body = response.json<MealPlan>();
+    for (const day of body.days) {
+      expect(day.lunch.oliveOil.quantityG).toBe(5);
+      expect(day.lunch.broth.quantityMl).toBe(150);
+      expect(day.dinner.oliveOil.quantityG).toBe(5);
+      expect(day.dinner.broth.quantityMl).toBe(150);
+    }
+    await app.close();
+  });
+
+  it('generatedAt is a valid ISO 8601 date string', async () => {
+    const app = await buildApp({ plan });
+    const response = await app.inject({ method: 'GET', url: '/api/plan' });
+    const body = response.json<MealPlan>();
+    expect(() => new Date(body.generatedAt).toISOString()).not.toThrow();
+    await app.close();
+  });
+});
+
